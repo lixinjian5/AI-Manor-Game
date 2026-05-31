@@ -1,147 +1,173 @@
-# AI-Manor-Game
+# 🏰 欧利蒂丝庄园（AI Manor Game）
 
-基于大语言模型的文字剧情互动游戏 | 第五人格风格
+> 基于大语言模型的 AI 叙事引擎 | 文字剧情互动游戏 | 第五人格风格
+
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.x-FF4B4B.svg)](https://streamlit.io/)
+[![DeepSeek](https://img.shields.io/badge/LLM-DeepSeek--Chat-green.svg)](https://deepseek.com/)
+
+---
 
 ## 项目介绍
 
-AI-Manor-Game 是一个有《第五人格》元素的 AI 剧情互动文字游戏。
+玩家收到一封神秘邀请函，来到被迷雾包围的欧利蒂丝庄园。你必须探索环境、与 NPC 互动、揭开真相，并在理智崩溃或行动耗尽前找到逃离的方法。
 
-玩家将在欧利蒂丝庄园中探索线索、与 NPC 互动，影响剧情发展，并根据自己的选择触发不同结局。
+**这不是一个简单的聊天机器人——它是一个 AI 驱动的叙事引擎。** AI 作为"庄园主持人 + 全体 NPC"，根据玩家的每一步行动实时生成剧情，同时通过结构化输出驱动游戏状态变化。
 
-项目尝试将 Prompt Engineering、状态管理和记忆系统结合，打造具有沉浸感的 AI 剧情体验。
+---
+
+## 🎮 核心玩法
+
+| 机制 | 说明 |
+|------|------|
+| 地点探索 | 6 个区域（大厅/餐厅/医务室/花园/地下室/二楼走廊） |
+| NPC 互动 | 5 名角色，各有性格、秘密和关系网 |
+| 理智管理 | 0~100，不同区间影响叙事风格 |
+| 行动策略 | 观察/对话免费，实质行动消耗步数 |
+| 线索收集 | 发现关键线索奖励额外步数 |
+| 多结局 | 逃脱 / 疯狂 / 困死，由 AI 根据剧情逻辑触发 |
+
+---
+
+## 🧠 架构设计 — AI 叙事引擎
+
+核心创新：**状态由 AI 自己声明，而非代码猜测。**
+
+```
+玩家输入 "我去花园调查"
+        ↓
+  AI 生成剧情 + 结构化状态块:
+  "花园中玫瑰花丛微微颤动...
+   <STATE>
+   {"location":"花园","sanity_change":-5,"milestone":"发现花丛下的暗门","actions_used":1,"escape":false}
+   </STATE>"
+        ↓
+  代码解析 JSON → 更新地点/理智/里程碑/步数
+        ↓
+  <STATE> 块从显示中移除，玩家只看到纯净剧情
+```
+
+这替代了传统的关键词匹配方案，具备更高的灵活性和可维护性。
 
 ---
 
 ## 技术栈
 
-- Python
-- Streamlit
-- DeepSeek API
-- Prompt Engineering
+| 层级 | 技术 |
+|------|------|
+| 前端 | Streamlit（Chat UI + Sidebar） |
+| AI 引擎 | DeepSeek API（deepseek-chat） |
+| 状态管理 | streamlit.session_state |
+| 配置管理 | python-dotenv（.env 文件） |
+| 数据 | JSON（角色）+ TXT（世界/地图） |
 
 ---
 
-## 已实现功能
+## 已实现功能（v2.0）
 
-### 聊天系统
-
-- Streamlit 聊天界面
-- DeepSeek API 接入
-- 多轮剧情互动
-
-### 状态系统
-
-- 地点（Location）
-- 时间（Time）
-- 理智值（Sanity）
-- 行动次数（Actions Left）
-
-### Memory 系统（初版）
-
-记录玩家关键行为：
-
-- 帮助
-- 怀疑
-- 攻击
-- 调查
-- 发现
-
-并自动注入 Prompt，影响后续剧情生成。
+- [x] Streamlit 聊天界面（侧边栏固定、内容居左、字体优化）
+- [x] DeepSeek API 接入（完整历史回传）
+- [x] NPC 角色系统（5 角色，含性格/秘密/关系网）
+- [x] 地点系统（6 区域，AI 回复驱动地点切换）
+- [x] 理智值系统（三档显示：清醒/不安/濒临崩溃）
+- [x] 步数智能消耗（观察/闲聊免费，调查/移动扣步）
+- [x] 里程碑追踪（侧边栏展示关键发现）
+- [x] game_log 剧情时间线（最近 5 轮回传 AI）
+- [x] AI 结构化状态引擎（`<STATE>` JSON 驱动）
+- [x] 三结局系统（逃脱🏆/疯狂💀/困死🔒）
 
 ---
 
 ## 项目结构
 
-```text
+```
 AI-Manor-Game/
-├─ chatxiangmu.py
-├─ world.txt
-├─ map.txt
-└─ characters.json
+├── chatxiangmu.py          # 主程序
+├── world.txt               # 世界观背景
+├── map.txt                 # 地图区域定义
+├── characters.json         # NPC 角色设定
+├── .env.example            # API Key 配置模板
+├── .gitignore
+└── README.md
 ```
 
 ---
 
-## 运行方式
+## 快速开始
 
-安装依赖：
+### 1. 安装依赖
 
 ```bash
-pip install streamlit requests
+pip install streamlit requests python-dotenv
 ```
 
-启动项目：
+### 2. 配置 API Key
+
+```bash
+cp .env.example .env
+# 编辑 .env，填入你的 DeepSeek API Key
+```
+
+### 3. 启动
 
 ```bash
 streamlit run chatxiangmu.py
 ```
 
+浏览器访问 `http://localhost:8501`
+
 ---
 
-## 项目亮点
+## 游戏状态系统
 
-- 基于大语言模型实现动态剧情生成
-- 通过 Prompt Engineering 约束 NPC 行为与世界观
-- 实现游戏状态管理系统
-- 实现初版 Memory 记忆机制
-- 支持多轮对话与剧情推进
-- 支持多结局扩展
+| 状态 | 初始值 | 范围 | 说明 |
+|------|--------|------|------|
+| 位置 | 大厅 | 6 个区域 | AI 回复中的地点名自动触发切换 |
+| 理智值 | 100 | 0~100 | 由 AI 根据剧情决定变化幅度 |
+| 剩余行动 | 30 | - | 实质行动-1，发现线索+2 |
+| 时间 | 夜晚 | - | 待激活 |
+| 里程碑 | [] | - | 关键剧情发现记录 |
+
+---
+
+## 三个结局
+
+| 结局 | 触发条件 | 表现 |
+|------|----------|------|
+| 🏆 逃脱 | AI 设置 `escape: true` | 气球庆祝 |
+| 💀 疯狂 | 理智值 ≤ 0 | 精神崩溃 |
+| 🔒 困死 | 行动耗尽 | 永远留在庄园 |
 
 ---
 
 ## 后续计划
 
-### Memory 系统升级
+### 近期
+- **NPC 独立记忆**：每个 NPC 维护独立的互动历史
+- **剧情摘要压缩**：长线剧情自动生成摘要，突破记忆窗口限制
+- **AI 剧情一致性优化**：更强的上下文约束
 
-实现：
+### 中期
+- **NPC 关系系统**：好感度/怀疑度/信任度
+- **多结局树**：关键分叉点 + 可视化结局路径
+- **情绪驱动叙事**：低理智触发幻觉/偏执描写
 
-- 短期记忆（Short Memory）
-- 长期记忆（Long Memory）
-- 重要事件记录（Important Events）
-
-### NPC 关系系统
-
-根据玩家行为动态调整 NPC 态度：
-
-- 好感度（Favorability）
-- 怀疑度（Suspicion）
-- 信任度（Trust）
-
-### RAG 记忆系统
-
-实现：
-
-```text
-剧情资料
-↓
-Embedding
-↓
-向量数据库
-↓
-Top-K 检索
-↓
-Prompt 注入
-↓
-剧情生成
-```
-
-### 多结局扩展
-
-根据玩家选择触发不同结局：
-
-- 逃离庄园
-- 真相结局
-- 疯狂结局
-- 隐藏结局
+### 远期
+- **时间系统**：昼夜循环，午夜规则
+- **存档/读档**：持久化游戏进度
+- **RAG 记忆**：向量数据库驱动的长期记忆
 
 ---
 
 ## 作者
 
-李欣键
+**李欣键**
 
-西南民族大学 · 人工智能专业
+西南民族大学 · 人工智能专业 · 大二
 
-GitHub：
+GitHub：[lixinjian5](https://github.com/lixinjian5)
 
-https://github.com/lixinjian5
+---
+
+> 项目状态：AI 叙事引擎 v2.0，核心循环完整可玩。
+> 本项目为个人学习项目，目标是打造可写进简历、可在实习面试中讲解的 AI 应用作品。
