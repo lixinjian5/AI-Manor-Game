@@ -1,0 +1,22 @@
+# 敏感配置
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 备份文件
+*_backup.py
+
+# OS
+.DS_Store
+Thumbs.db
