@@ -16,6 +16,7 @@ venv/
 
 # 备份文件
 *_backup.py
+_backup/
 
 # OS
 .DS_Store
