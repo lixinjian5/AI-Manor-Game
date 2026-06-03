@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import re
 import json
+import random
 from dotenv import load_dotenv
 
 from engine import generate_mystery, MemoryManager, narrate, check_accusation
@@ -51,7 +52,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🏰 欧利蒂丝庄园")
-st.caption("一场谋杀。五个嫌疑人。真相只有一个。")
+st.caption("一场谋杀。真相只有一个。")
 
 # =========================
 # 加载静态数据
@@ -63,7 +64,9 @@ with open(os.path.join(BASE_DIR, "world.txt"), "r", encoding="utf-8") as f:
     world_setting = f.read()
 
 with open(os.path.join(BASE_DIR, "characters.json"), "r", encoding="utf-8") as f:
-    characters = json.load(f)
+    ALL_CHARACTERS = json.load(f)
+
+CHARACTER_POOL_SIZE = 5
 
 ALL_LOCATIONS = {}
 for line in game_map.strip().split("\n"):
@@ -97,14 +100,19 @@ if "game_started" not in st.session_state:
     st.session_state.memory = MemoryManager()
     st.session_state.location = "大厅"
     st.session_state.game_ended = False
+    st.session_state.active_characters = {}
 
+# 每局随机从角色池抽 5 人（1 死者 + 4 活人 = 1 真凶 + 3 嫌疑人）
+if not st.session_state.active_characters:
+    names = random.sample(list(ALL_CHARACTERS.keys()), CHARACTER_POOL_SIZE)
+    st.session_state.active_characters = {n: ALL_CHARACTERS[n] for n in names}
 
 # =========================
 # 开局：生成谜题
 # =========================
 if not st.session_state.game_started:
     with st.spinner("🕯️ 正在生成本局谜题……（约30秒）"):
-        script = generate_mystery(DEEPSEEK_API_KEY, characters, world_setting)
+        script = generate_mystery(DEEPSEEK_API_KEY, st.session_state.active_characters, world_setting)
 
     if not script or "真凶" not in script:
         st.error("谜题生成失败，请刷新页面重试。")
@@ -115,7 +123,7 @@ if not st.session_state.game_started:
     st.session_state.victim = parse_victim(script)
 
     victim = st.session_state.victim
-    alive_npcs = [name for name in characters if name != victim]
+    alive_npcs = [name for name in st.session_state.active_characters if name != victim]
     loc_names = list(ALL_LOCATIONS.keys())
 
     opening = f"""
@@ -166,12 +174,12 @@ st.sidebar.write(f"📍 当前位置：{st.session_state.location}")
 if st.session_state.victim:
     st.sidebar.write(f"💀 死者：{st.session_state.victim}")
 
-alive = [n for n in characters if n != st.session_state.victim]
+alive = [n for n in st.session_state.active_characters if n != st.session_state.victim]
 if alive:
     st.sidebar.markdown("---")
     st.sidebar.subheader("👤 嫌疑人")
     for name in alive:
-        st.sidebar.caption(f"• {characters[name]['身份']} — {name}")
+        st.sidebar.caption(f"• {st.session_state.active_characters[name]['身份']} — {name}")
 
 if st.session_state.memory.facts:
     st.sidebar.markdown("---")
@@ -260,7 +268,7 @@ if prompt:
         ai_reply = narrate(
             api_key=DEEPSEEK_API_KEY,
             mystery_script=st.session_state.mystery_script,
-            characters=characters,
+            characters=st.session_state.active_characters,
             world_setting=world_setting,
             memory=st.session_state.memory,
             player_input=prompt,
