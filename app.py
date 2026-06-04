@@ -5,7 +5,7 @@ import json
 import random
 from dotenv import load_dotenv
 
-from engine import generate_mystery, MemoryManager, narrate, check_accusation
+from engine import generate_mystery, MemoryManager, narrate, check_accusation, reveal_case
 from engine.narrator import parse_killer
 
 load_dotenv()
@@ -87,27 +87,32 @@ def match_character_name(name: str, active_characters: dict) -> str | None:
     """把 AI 输出的名字（可能是全名/身份/简称）匹配到 active_characters 的 key"""
     if not name:
         return None
-    # 精确匹配
-    if name in active_characters:
-        return name
-    # 遍历角色数据，看名字是否出现在角色的"身份"字段或全名中
-    for key, data in active_characters.items():
-        if name in key or name in data.get("身份", ""):
-            return key
-    # 反过来：角色 key 是否出现在 AI 输出的名字中
-    for key in active_characters:
-        if key in name:
-            return key
+    # 去除括号里的补充文字：薇拉·奈尔（调香师）→ 薇拉·奈尔
+    clean = re.sub(r"[（(][^)）]*[)）]", "", name).strip()
+    candidates = [name, clean] if clean != name else [name]
+    for c in candidates:
+        if c in active_characters:
+            return c
+    for c in candidates:
+        for key, data in active_characters.items():
+            if c in key or c in data.get("身份", ""):
+                return key
+    for c in candidates:
+        for key in active_characters:
+            if key in c:
+                return key
     return None
 
 
 def parse_victim(script: str, active_characters: dict) -> str:
-    m = re.search(r"死者[：:]\s*(.+)", script)
-    if not m:
-        return "一位客人"
-    raw = m.group(1).strip()
-    matched = match_character_name(raw, active_characters)
-    return matched if matched else raw
+    # 匹配 "死者：XXX" 或 "死者是XXX"，非贪婪，遇逗号句号换行停止
+    for pat in [r"死者[：:]\s*(.+?)(?:[，。,.\n]|$)", r"死者是\s*(.+?)(?:[，。,.\n]|$)"]:
+        m = re.search(pat, script)
+        if m:
+            raw = m.group(1).strip()
+            matched = match_character_name(raw, active_characters)
+            return matched if matched else raw
+    return "一位客人"
 
 
 # =========================
@@ -142,6 +147,10 @@ if not st.session_state.game_started:
 
     st.session_state.mystery_script = script
     st.session_state.killer = parse_killer(script)
+    # 同样做名字匹配：AI 可能输出"真凶：调香师"而非"真凶：薇拉·奈尔"
+    resolved = match_character_name(st.session_state.killer, st.session_state.active_characters)
+    if resolved:
+        st.session_state.killer = resolved
     st.session_state.victim = parse_victim(script, st.session_state.active_characters)
 
     victim = st.session_state.victim
@@ -237,6 +246,9 @@ if prompt:
         correct = resolved_accused == resolved_killer
 
         if correct:
+            with st.spinner("🕯️ 真相正在拼凑……"):
+                case_reveal = reveal_case(DEEPSEEK_API_KEY, st.session_state.mystery_script)
+
             ending_msg = f"""
             {prompt}
 
@@ -248,9 +260,8 @@ if prompt:
 
             证据确凿。真相大白。
 
-            凶手的面具终于被撕下。{st.session_state.victim}的灵魂得以安息。
-
-            你做到了。
+            ---
+            {case_reveal}
 
             🎮 **结局：真相大白**
             """
@@ -259,6 +270,9 @@ if prompt:
             st.session_state.game_ended = True
             st.rerun()
         else:
+            with st.spinner("🕯️ 真相正在拼凑……"):
+                case_reveal = reveal_case(DEEPSEEK_API_KEY, st.session_state.mystery_script)
+
             ending_msg = f"""
             {prompt}
 
@@ -271,10 +285,11 @@ if prompt:
             但真正的凶手是**{resolved_killer}**。
 
             被冤枉的人踉跄后退，而真正的凶手嘴角浮现一丝冷笑。
-
             在你错误的指控下，真凶趁乱消失在庄园的迷雾中。
 
-            庄园又多了一桩悬案，和两个冤魂。
+            ---
+            **真正的真相：**
+            {case_reveal}
 
             🎮 **结局：冤案**
             """

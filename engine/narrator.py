@@ -86,3 +86,18 @@ def parse_killer(mystery_script: str) -> str:
     if m:
         return m.group(1).strip()
     return ""
+
+
+def reveal_case(api_key: str, mystery_script: str) -> str:
+    """游戏结束时，根据谜题剧本生成完整案情揭示。"""
+    prompt = f"""游戏结束了。请根据以下谜题剧本，以主持人的口吻向玩家揭示完整的案件真相。
+
+剧本：
+{mystery_script}
+
+请用以下格式输出（200字以内，哥特风格）：
+- 凶手是谁
+- 动机是什么
+- 作案手法
+- 关键证据链"""
+    return call(api_key, [{"role": "user", "content": prompt}])
