@@ -83,9 +83,31 @@ def detect_location(text: str) -> str | None:
     return None
 
 
-def parse_victim(script: str) -> str:
+def match_character_name(name: str, active_characters: dict) -> str | None:
+    """把 AI 输出的名字（可能是全名/身份/简称）匹配到 active_characters 的 key"""
+    if not name:
+        return None
+    # 精确匹配
+    if name in active_characters:
+        return name
+    # 遍历角色数据，看名字是否出现在角色的"身份"字段或全名中
+    for key, data in active_characters.items():
+        if name in key or name in data.get("身份", ""):
+            return key
+    # 反过来：角色 key 是否出现在 AI 输出的名字中
+    for key in active_characters:
+        if key in name:
+            return key
+    return None
+
+
+def parse_victim(script: str, active_characters: dict) -> str:
     m = re.search(r"死者[：:]\s*(.+)", script)
-    return m.group(1).strip() if m else "一位客人"
+    if not m:
+        return "一位客人"
+    raw = m.group(1).strip()
+    matched = match_character_name(raw, active_characters)
+    return matched if matched else raw
 
 
 # =========================
@@ -120,7 +142,7 @@ if not st.session_state.game_started:
 
     st.session_state.mystery_script = script
     st.session_state.killer = parse_killer(script)
-    st.session_state.victim = parse_victim(script)
+    st.session_state.victim = parse_victim(script, st.session_state.active_characters)
 
     victim = st.session_state.victim
     alive_npcs = [name for name in st.session_state.active_characters if name != victim]
@@ -210,8 +232,9 @@ if prompt:
     # ---- 指认检测 ----
     accused = check_accusation(prompt)
     if accused:
-        killer = st.session_state.killer
-        correct = accused in killer or killer in accused
+        resolved_accused = match_character_name(accused, st.session_state.active_characters) or accused
+        resolved_killer = match_character_name(st.session_state.killer, st.session_state.active_characters) or st.session_state.killer
+        correct = resolved_accused == resolved_killer
 
         if correct:
             ending_msg = f"""
@@ -221,7 +244,7 @@ if prompt:
 
             🏆 **真凶落网**
 
-            「{killer}」—— 当这个名字被说出时，一切安静了。
+            「{resolved_killer}」—— 当这个名字被说出时，一切安静了。
 
             证据确凿。真相大白。
 
@@ -243,9 +266,9 @@ if prompt:
 
             💀 **冤案**
 
-            你指认了{accused}。
+            你指认了{resolved_accused}。
 
-            但真正的凶手是**{killer}**。
+            但真正的凶手是**{resolved_killer}**。
 
             被冤枉的人踉跄后退，而真正的凶手嘴角浮现一丝冷笑。
 
